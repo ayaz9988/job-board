@@ -25,7 +25,7 @@ export const jobs = pgTable("jobs", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
-  employerId: text("employer_id")  // FIXED: uuid → text
+  employerId: text("employer_id")
     .references(() => user.id, { onDelete: "cascade" })
     .notNull(),
   salaryMin: integer("salary_min"),

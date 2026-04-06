@@ -1,10 +1,8 @@
-import { Router } from 'express';
-import { pingRoute } from './ping';
-import { sampleRoute } from './sample';
+import { Router } from "express";
+import { jobsRouter } from "./jobs";
 
 const router = Router();
 
-router.use(pingRoute);
-router.use(sampleRoute);
+router.use("/jobs", jobsRouter);
 
 export default router;

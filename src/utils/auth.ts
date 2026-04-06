@@ -7,7 +7,19 @@ import {
   account,
   verification,
 } from "../db/schemas/schema-auth";
+import { fromNodeHeaders } from "better-auth/node";
+import type { IncomingHttpHeaders } from "http";
 // import { sendEmail } from "./email"; // your email sending function
+
+export interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+    role: "admin" | "employer" | "seeker";
+    profile?: string;
+    location?: string;
+  };
+}
 
 export const auth = betterAuth({
   baseURL: "http://localhost:3000",
@@ -46,9 +58,47 @@ export const auth = betterAuth({
       });
     },
   },
+  user: {
+    additionalFields: {
+      role: {
+        type: "string" as const,
+        required: true,
+        input: true, // Don't let users set role on signup
+        defaultValue: "seeker" as const,
+      },
+      profile: {
+        type: "string" as const,
+        required: false,
+        input: true, // Allow users to set profile
+      },
+      location: {
+        type: "string" as const,
+        required: false,
+        input: true,
+      },
+    },
+  },
   trustedOrigins: [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:*", // Wildcard port
   ],
 });
+
+export const getAuthContext = async (headers: IncomingHttpHeaders) => {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(headers),
+  });
+  return session;
+};
+
+/*
+usage example
+export async function MyController(this: ControllerClass, req: Request, res: Response) {
+    const ctx = await getAuthContext(req.headers);
+    if (!ctx) {
+        throw new Error("Should Never Happer: This should have been handled by the middleware");
+    }
+    return res.status(200).json({ user: ctx.user });
+}
+*/
