@@ -3,13 +3,18 @@ import db from "@/db";
 import { jobs } from "@/db/schemas/schema";
 import { getUserData } from "@/utils/user-data";
 import { eq } from "drizzle-orm";
+import { httpLogger, formatHTTPLoggerResponse } from "@/utils/logger";
 
 export const getJobs = async (req: Request, res: Response) => {
   const user = await getUserData(req, res);
   const jobsList = await db.select().from(jobs);
   if (!jobsList) {
-    throw new Error("No jobs found");
+    return res.status(404).json({
+      message: "Jobs not found",
+    });
   }
+
+  // change make with query parameter
   if (user.role === "employer") {
     const employerJobs = jobsList.filter((job) => job.employerId === user.id);
     res.json(employerJobs);
@@ -27,7 +32,9 @@ export const getJobById = async (req: Request, res: Response) => {
   const jobId = parseInt(req.params.id as string);
   const job = await db.select().from(jobs).where(eq(jobs.id, jobId));
   if (!job) {
-    throw new Error("Job not found");
+    return res.status(404).json({
+      message: "Job not found",
+    });
   }
   res.json(job[0]);
 };
@@ -35,7 +42,9 @@ export const getJobById = async (req: Request, res: Response) => {
 export const createJob = async (req: Request, res: Response) => {
   const user = await getUserData(req, res);
   if (user.role !== "employer") {
-    throw new Error("Only employers can create jobs");
+    return res.status(403).json({
+      message: "Only employers can create jobs",
+    });
   }
   const { title, description, salaryMin, salaryMax, location } = req.body;
   const newJob = await db.insert(jobs).values({
@@ -57,10 +66,14 @@ export const updateJob = async (req: Request, res: Response) => {
     req.body;
   const job = await db.select().from(jobs).where(eq(jobs.id, jobId));
   if (!job) {
-    throw new Error("Job not found");
+    return res.status(404).json({
+      message: "Job not found",
+    });
   }
   if (user.role !== "employer" || job[0].employerId !== user.id) {
-    throw new Error("Only the employer who created the job can update it");
+    return res.status(403).json({
+      message: "Only the employer who created the job can update it",
+    });
   }
   const updatedJob = await db
     .update(jobs)
@@ -81,10 +94,14 @@ export const deleteJob = async (req: Request, res: Response) => {
   const jobId = parseInt(req.params.id as string);
   const job = await db.select().from(jobs).where(eq(jobs.id, jobId));
   if (!job) {
-    throw new Error("Job not found");
+    return res.status(404).json({
+      message: "Job not found",
+    });
   }
   if (user.role !== "employer" || job[0].employerId !== user.id) {
-    throw new Error("Only the employer who created the job can delete it");
+    return res.status(403).json({
+      message: "Only the employer who created the job can update it",
+    });
   }
   await db.delete(jobs).where(eq(jobs.id, jobId));
   res.status(204).json({ message: "Job deleted successfully" });
