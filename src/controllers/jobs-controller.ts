@@ -10,24 +10,21 @@ export const getJobs = async (req: Request, res: Response) => {
   try {
     const user = await getUserData(req, res);
     const jobsList = await db.select().from(jobs);
-    if (!jobsList) {
-      return res.status(404).json({
-        message: "Jobs not found",
-      });
+    if (!jobsList.length) {
+      return res.status(404).json({ message: "No jobs found" });
     }
 
-    if (user.role === "employer") {
-      if (!mine) {
-        res.json(jobsList);
-        return;
-      }
-      const employerJobs = jobsList.filter((job) => job.employerId === user.id);
-      res.json(employerJobs);
-      return;
-    } else if (user.role === "seeker" || user.role === "admin") {
-      res.json(jobsList);
-      return;
+    let result = jobsList;
+    if (user.role === "employer" && mine === "true") {
+      result = jobsList.filter((job) => job.employerId === user.id);
     }
+
+    res.json({
+      jobs: result,
+      // page,
+      // limit,
+      // total: jobsList.length,
+    });
   } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
@@ -36,6 +33,11 @@ export const getJobs = async (req: Request, res: Response) => {
 export const getJobById = async (req: Request, res: Response) => {
   try {
     const jobId = parseInt(req.params.id as string);
+    if (!jobId) {
+      return res.status(400).json({
+        message: `Missing required parameter '[id]'.`,
+      });
+    }
     const job = await db.select().from(jobs).where(eq(jobs.id, jobId));
     if (!job) {
       return res.status(404).json({
@@ -79,6 +81,11 @@ export const updateJob = async (req: Request, res: Response) => {
     req.body;
   try {
     const jobId = parseInt(req.params.id as string);
+    if (!jobId) {
+      return res.status(400).json({
+        message: `Missing required parameter '[id]'.`,
+      });
+    }
     const job = await db.select().from(jobs).where(eq(jobs.id, jobId));
     if (!job) {
       return res.status(404).json({
@@ -111,6 +118,11 @@ export const deleteJob = async (req: Request, res: Response) => {
   const user = await getUserData(req, res);
   try {
     const jobId = parseInt(req.params.id as string);
+    if (!jobId) {
+      return res.status(400).json({
+        message: `Missing required parameter '[id]'.`,
+      });
+    }
     const job = await db.select().from(jobs).where(eq(jobs.id, jobId));
     if (!job) {
       return res.status(404).json({
