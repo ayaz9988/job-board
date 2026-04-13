@@ -19,7 +19,7 @@ export const createValidationMiddleware = <T extends z.ZodTypeAny>(
       if (error instanceof ZodError) {
         return res.status(400).json({
           message: "Validation failed",
-          errors: error.errors.map((e: any) => ({
+          errors: error.issues.map((e: any) => ({
             field: e.path.join("."),
             message: e.message,
           })),
