@@ -20,6 +20,7 @@ export const appStatus = pgEnum("app_status", [
   "rejected",
   "hired",
 ]);
+export const applicationStatus = appStatus.enumValues;
 
 export const jobs = pgTable("jobs", {
   id: serial("id").primaryKey(),
@@ -42,11 +43,12 @@ export const applications = pgTable(
     jobId: integer("job_id")
       .references(() => jobs.id, { onDelete: "cascade" })
       .notNull(),
-    seekerId: text("seeker_id")  // FIXED: uuid → text
+    seekerId: text("seeker_id") // FIXED: uuid → text
       .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
     status: appStatus("status").notNull().default("applied"),
     coverLetter: text("cover_letter"),
+    cv: text("cv"),
     appliedAt: timestamp("applied_at").defaultNow(),
   },
   (table) => ({
@@ -71,7 +73,7 @@ export const skills = pgTable(
 export const userSkills = pgTable(
   "user_skills",
   {
-    userId: text("user_id")  // FIXED: uuid → text
+    userId: text("user_id") // FIXED: uuid → text
       .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
     skillId: integer("skill_id")
