@@ -29,7 +29,7 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    // requireEmailVerification: true,
     onExistingUserSignUp: async ({ user }, request) => {
       void sendEmail({
         to: user.email,
@@ -45,19 +45,18 @@ export const auth = betterAuth({
       });
     },
     onPasswordReset: async ({ user }, request) => {
-      // your logic here
       console.log(`Password for user ${user.email} has been reset.`);
     },
   },
-  emailVerification: {
-    sendVerificationEmail: async ({ user, url, token }, request) => {
-      void sendEmail({
-        to: user.email,
-        subject: "Verify your email address",
-        text: `Click the link to verify your email: ${url}?token=${token}`,
-      });
-    },
-  },
+  // emailVerification: {
+  //   sendVerificationEmail: async ({ user, url, token }, request) => {
+  //     void sendEmail({
+  //       to: user.email,
+  //       subject: "Verify your email address",
+  //       text: `Click the link to verify your email: ${url}?token=${token}`,
+  //     });
+  //   },
+  // },
   user: {
     additionalFields: {
       role: {
