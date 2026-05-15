@@ -17,7 +17,8 @@ export const getJobs = async (req: Request, res: Response) => {
         : undefined;
 
     const [jobsList, total] = await Promise.all([
-      db.select()
+      db
+        .select()
         .from(jobs)
         .where(whereCondition)
         .limit(parseInt(limit as string))
@@ -33,7 +34,7 @@ export const getJobs = async (req: Request, res: Response) => {
           .innerJoin(skills, eq(jobSkills.skillId, skills.id))
           .where(eq(jobSkills.jobId, job.id));
         return { ...job, skills: jobSkillRows };
-      })
+      }),
     );
 
     res.json({
@@ -49,7 +50,7 @@ export const getJobs = async (req: Request, res: Response) => {
 
 export const getJobById = async (req: Request, res: Response) => {
   try {
-    const jobId = parseInt(req.params.id);
+    const jobId = parseInt(req.params.id as string);
     const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId));
     if (!job) {
       return res.status(404).json({ message: "Job not found" });
@@ -69,22 +70,34 @@ export const getJobById = async (req: Request, res: Response) => {
 
 export const createJob = async (req: Request, res: Response) => {
   const user = await getUserData(req, res);
-  const { title, description, salaryMin, salaryMax, location, skills: skillNames } = req.body;
+  const {
+    title,
+    description,
+    salaryMin,
+    salaryMax,
+    location,
+    skills: skillNames,
+  } = req.body;
 
   try {
     if (user.role !== "employer") {
-      return res.status(403).json({ message: "Only employers can create jobs" });
+      return res
+        .status(403)
+        .json({ message: "Only employers can create jobs" });
     }
 
-    const [newJob] = await db.insert(jobs).values({
-      title,
-      description,
-      salaryMin: salaryMin ? parseInt(salaryMin) : null,
-      salaryMax: salaryMax ? parseInt(salaryMax) : null,
-      status: "open",
-      location,
-      employerId: user.id,
-    }).returning();
+    const [newJob] = await db
+      .insert(jobs)
+      .values({
+        title,
+        description,
+        salaryMin: salaryMin ? parseInt(salaryMin) : null,
+        salaryMax: salaryMax ? parseInt(salaryMax) : null,
+        status: "open",
+        location,
+        employerId: user.id,
+      })
+      .returning();
 
     if (skillNames?.length) {
       for (const name of skillNames) {
@@ -94,11 +107,13 @@ export const createJob = async (req: Request, res: Response) => {
           .onConflictDoNothing()
           .returning();
 
-        const skillToUse = skill || await db
-          .select()
-          .from(skills)
-          .where(eq(skills.name, name))
-          .then(rows => rows[0]);
+        const skillToUse =
+          skill ||
+          (await db
+            .select()
+            .from(skills)
+            .where(eq(skills.name, name))
+            .then((rows) => rows[0]));
 
         if (skillToUse) {
           await db.insert(jobSkills).values({
@@ -117,12 +132,16 @@ export const createJob = async (req: Request, res: Response) => {
 
 export const updateJob = async (req: Request, res: Response) => {
   const user = await getUserData(req, res);
-  const { title, description, salaryMin, salaryMax, location, status } = req.body;
+  const { title, description, salaryMin, salaryMax, location, status } =
+    req.body;
 
   try {
-    const jobId = parseInt(req.params.id);
+    const jobId = parseInt(req.params.id as string);
 
-    const [existingJob] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+    const [existingJob] = await db
+      .select()
+      .from(jobs)
+      .where(eq(jobs.id, jobId));
     if (!existingJob) {
       return res.status(404).json({ message: "Job not found" });
     }
@@ -148,9 +167,12 @@ export const updateJob = async (req: Request, res: Response) => {
 export const deleteJob = async (req: Request, res: Response) => {
   const user = await getUserData(req, res);
   try {
-    const jobId = parseInt(req.params.id);
+    const jobId = parseInt(req.params.id as string);
 
-    const [existingJob] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+    const [existingJob] = await db
+      .select()
+      .from(jobs)
+      .where(eq(jobs.id, jobId));
     if (!existingJob) {
       return res.status(404).json({ message: "Job not found" });
     }
