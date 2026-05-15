@@ -9,11 +9,15 @@ import {
 import { authenticationMiddleware } from "@/middlewares/authMiddleware";
 import { createValidationMiddleware } from "@/middlewares/zod-middleware-factory";
 import {
-  getJobsSchema, // ← Fixed name
-  jobIdSchema, // ← Used for both GET by ID and DELETE
+  getJobsSchema,
+  jobIdSchema,
   createJobSchema,
   updateJobSchema,
-} from "../utils/zod-schemas"; // ← Fixed empty import
+} from "../utils/zod-schemas";
+import {
+  createApplication,
+  getJobApplications,
+} from "@/controllers/applications-controller";
 
 export const jobsRouter = Router();
 
@@ -50,4 +54,12 @@ jobsRouter.delete(
   authenticationMiddleware,
   createValidationMiddleware(jobIdSchema),
   deleteJob,
+);
+
+jobsRouter.post("/:id/apply", createApplication);
+
+jobsRouter.get(
+  "/:id/applications",
+  authenticationMiddleware,
+  getJobApplications,
 );
