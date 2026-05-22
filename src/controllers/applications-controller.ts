@@ -9,7 +9,74 @@ import {
   applicationStatus,
 } from "@/db/schemas/schema";
 import { user } from "@/db/schemas/schema-auth";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import { count } from "drizzle-orm";
+
+// make it show a breif of the job instead of the jobid same for the other get methods
+export const getAllApplications = async (req: Request, res: Response) => {
+  const { page = "1", limit = "10" } = req.query;
+  const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
+
+  const user = await getUserData(req, res);
+
+  try {
+    const whereCondition =
+      user.role === "seeker" ? eq(applications.seekerId, user.id) : undefined;
+
+    const [applicationsList, total] = await Promise.all([
+      db
+        .select({
+          id: applications.id,
+          status: applications.status,
+          coverLetter: applications.coverLetter,
+          cv: applications.cv,
+          appliedAt: applications.appliedAt,
+        })
+        .from(applications)
+        .where(whereCondition)
+        .limit(parseInt(limit as string))
+        .offset(offset),
+      db
+        .select({ count: applications.seekerId })
+        .from(applications)
+        .where(whereCondition),
+    ]);
+
+    res.json({
+      applications: applicationsList,
+      page: parseInt(page as string),
+      limit: parseInt(limit as string),
+      total: total.length,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getApplicationById = async (req: Request, res: Response) => {
+  const user = await getUserData(req, res);
+  try {
+    const whereCondition =
+      user.role === "seeker" ? eq(applications.seekerId, user.id) : undefined;
+    const applicationId = parseInt(req.params.id as string);
+    const [application] = await db
+      .select({
+        id: applications.id,
+        status: applications.status,
+        coverLetter: applications.coverLetter,
+        cv: applications.cv,
+        appliedAt: applications.appliedAt,
+      })
+      .from(applications)
+      .where(and(whereCondition, eq(applications.id, applicationId)));
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+    res.json(application);
+  } catch (err) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 export const createApplication = async (req: Request, res: Response) => {
   const { status = "applied", coverLetter, cv } = req.body;

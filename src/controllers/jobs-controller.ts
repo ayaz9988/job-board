@@ -4,6 +4,7 @@ import { jobs, jobSkills, skills } from "@/db/schemas/schema";
 import { getUserData } from "@/utils/user-data";
 import { eq, and } from "drizzle-orm";
 
+// in the get request make it show employer data instead of it id
 export const getJobs = async (req: Request, res: Response) => {
   const { mine, page = "1", limit = "10" } = req.query;
   const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -50,6 +51,7 @@ export const getJobs = async (req: Request, res: Response) => {
 
 export const getJobById = async (req: Request, res: Response) => {
   try {
+    const user = await getUserData(req, res);
     const jobId = parseInt(req.params.id as string);
     const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId));
     if (!job) {
