@@ -11,17 +11,20 @@ import {
 import { user } from "@/db/schemas/schema-auth";
 import { and, eq, sql } from "drizzle-orm";
 import { count } from "drizzle-orm";
+import { or } from "drizzle-orm";
 
 // make it show a breif of the job instead of the jobid same for the other get methods
 export const getAllApplications = async (req: Request, res: Response) => {
   const { page = "1", limit = "10" } = req.query;
   const offset = (parseInt(page as string) - 1) * parseInt(limit as string);
 
-  const user = await getUserData(req, res);
+  const cuser = await getUserData(req, res);
 
   try {
-    const whereCondition =
-      user.role === "seeker" ? eq(applications.seekerId, user.id) : undefined;
+    const whereCondition = or(
+      cuser.role === "seeker" ? eq(applications.seekerId, cuser.id) : undefined,
+      cuser.role === "employer" ? eq(jobs.employerId, cuser.id) : undefined,
+    );
 
     const [applicationsList, total] = await Promise.all([
       db
@@ -33,12 +36,15 @@ export const getAllApplications = async (req: Request, res: Response) => {
           appliedAt: applications.appliedAt,
         })
         .from(applications)
+        .leftJoin(jobs, eq(applications.jobId, jobs.id))
+        .leftJoin(user, eq(jobs.employerId, user.id))
         .where(whereCondition)
         .limit(parseInt(limit as string))
         .offset(offset),
       db
         .select({ count: applications.seekerId })
         .from(applications)
+        .leftJoin(jobs, eq(applications.jobId, jobs.id))
         .where(whereCondition),
     ]);
 
@@ -86,7 +92,9 @@ export const createApplication = async (req: Request, res: Response) => {
     const jobId = parseInt(req.params.id as string);
 
     if (user.role !== "seeker") {
-      return res.status(403).json({ message: "Only seekers can create jobs" });
+      return res
+        .status(403)
+        .json({ message: "Only seekers can create applications" });
     }
 
     const [newApplication] = await db
