@@ -4,3 +4,4 @@ bin
 logs
 *.local
 .env
+TODO.md

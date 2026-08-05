@@ -6,6 +6,7 @@ import { auth } from "./utils/auth";
 
 import router from "./routes";
 import { responseInterceptor } from "./middlewares/logger-response-interceptor";
+import errorHandler from "./middlewares/errorHandler";
 
 const app = express();
 
@@ -13,7 +14,7 @@ app.use(cors({ origin: "*", credentials: true }));
 app.use(responseInterceptor);
 app.all(
   "/api/auth/*splat",
-  (req, res, next) => {
+  (req, _res, next) => {
     console.log("Auth route hit:", req.method, req.path);
     next();
   },
@@ -27,5 +28,15 @@ app.use(
   }),
 );
 app.use("/api", router);
+
+app.get("/", (_req, res) => {
+  res.json({ 
+    message: "Welcome to the Job Board API!",
+    status: "success",
+    serverTime: new Date().toISOString(),
+  });
+});
+
+app.use(errorHandler);
 
 export default app;
