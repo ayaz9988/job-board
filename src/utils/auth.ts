@@ -62,13 +62,13 @@ export const auth = betterAuth({
       role: {
         type: "string" as const,
         required: true,
-        input: true, // Don't let users set role on signup
+        input: false, // Don't let users set role on signup
         defaultValue: "seeker" as const,
       },
       profile: {
         type: "string" as const,
         required: false,
-        input: true, // Allow users to set profile
+        input: false, // Don't let users set profile on signup
       },
       location: {
         type: "string" as const,
