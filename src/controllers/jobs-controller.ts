@@ -49,7 +49,7 @@ export const getJobs = async (req: Request, res: Response) => {
       .from(jobs)
       .leftJoin(jobSkills, eq(jobSkills.jobId, jobs.id))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
-      .innerJoin(user, eq(jobs.employerId, user.id))
+      .leftJoin(user, eq(jobs.employerId, user.id))
       .where(whereCondition)
       // groupBy: required because json_agg is an aggregate function; every non-aggregated column
       // in the SELECT must appear here, otherwise PostgreSQL throws an error
@@ -67,7 +67,7 @@ export const getJobs = async (req: Request, res: Response) => {
         user.email,
         user.image,
         user.profile,
-        user.location
+        user.location,
       )
       .limit(parseInt(limit as string))
       .offset(offset);
