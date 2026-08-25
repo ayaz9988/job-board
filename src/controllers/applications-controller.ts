@@ -1,4 +1,4 @@
-import { application, type Request, type Response } from "express";
+import { type Request, type Response } from "express";
 import { getUserData } from "@/utils/user-data";
 import db from "@/db";
 import {
@@ -21,10 +21,12 @@ export const getAllApplications = async (req: Request, res: Response) => {
   const cuser = await getUserData(req, res);
 
   try {
-    const whereCondition = or(
+    const roleConditions = [
       cuser.role === "seeker" ? eq(applications.seekerId, cuser.id) : undefined,
       cuser.role === "employer" ? eq(jobs.employerId, cuser.id) : undefined,
-    );
+    ].filter(Boolean);
+    const whereCondition =
+      roleConditions.length > 0 ? or(...roleConditions) : undefined;
 
     const [applicationsList, total] = await Promise.all([
       db
@@ -34,6 +36,20 @@ export const getAllApplications = async (req: Request, res: Response) => {
           coverLetter: applications.coverLetter,
           cv: applications.cv,
           appliedAt: applications.appliedAt,
+          job: {
+            id: jobs.id,
+            title: jobs.title,
+            description: jobs.description,
+            salaryMin: jobs.salaryMin,
+            salaryMax: jobs.salaryMax,
+            status: jobs.status,
+            location: jobs.location,
+          },
+          employer: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          },
         })
         .from(applications)
         .leftJoin(jobs, eq(applications.jobId, jobs.id))
@@ -42,7 +58,7 @@ export const getAllApplications = async (req: Request, res: Response) => {
         .limit(parseInt(limit as string))
         .offset(offset),
       db
-        .select({ count: applications.seekerId })
+        .select({ count: count() })
         .from(applications)
         .leftJoin(jobs, eq(applications.jobId, jobs.id))
         .where(whereCondition),
@@ -52,7 +68,7 @@ export const getAllApplications = async (req: Request, res: Response) => {
       applications: applicationsList,
       page: parseInt(page as string),
       limit: parseInt(limit as string),
-      total: total.length,
+      total: Number(total[0]?.count ?? 0),
     });
   } catch (err) {
     res.status(500).json({ message: "Internal server error" });
@@ -60,10 +76,14 @@ export const getAllApplications = async (req: Request, res: Response) => {
 };
 
 export const getApplicationById = async (req: Request, res: Response) => {
-  const user = await getUserData(req, res);
+  const userCurrent = await getUserData(req, res);
   try {
     const whereCondition =
-      user.role === "seeker" ? eq(applications.seekerId, user.id) : undefined;
+      userCurrent.role === "seeker"
+        ? eq(applications.seekerId, userCurrent.id)
+        : userCurrent.role === "employer"
+          ? eq(jobs.employerId, userCurrent.id)
+          : undefined;
     const applicationId = parseInt(req.params.id as string);
     const [application] = await db
       .select({
@@ -72,8 +92,24 @@ export const getApplicationById = async (req: Request, res: Response) => {
         coverLetter: applications.coverLetter,
         cv: applications.cv,
         appliedAt: applications.appliedAt,
+        job: {
+          id: jobs.id,
+          title: jobs.title,
+          description: jobs.description,
+          salaryMin: jobs.salaryMin,
+          salaryMax: jobs.salaryMax,
+          status: jobs.status,
+          location: jobs.location,
+        },
+        employer: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        },
       })
       .from(applications)
+      .leftJoin(jobs, eq(applications.jobId, jobs.id))
+      .leftJoin(user, eq(jobs.employerId, user.id))
       .where(and(whereCondition, eq(applications.id, applicationId)));
     if (!application) {
       return res.status(404).json({ message: "Application not found" });
@@ -152,6 +188,10 @@ export const getJobApplications = async (req: Request, res: Response) => {
           id: jobs.id,
           title: jobs.title,
           description: jobs.description,
+          salaryMin: jobs.salaryMin,
+          salaryMax: jobs.salaryMax,
+          status: jobs.status,
+          location: jobs.location,
         },
         skills: sql<{ skillId: number; name: string }[]>`coalesce(
           json_agg(
@@ -182,6 +222,10 @@ export const getJobApplications = async (req: Request, res: Response) => {
         jobs.id,
         jobs.title,
         jobs.description,
+        jobs.salaryMin,
+        jobs.salaryMax,
+        jobs.status,
+        jobs.location,
       );
 
     res.status(200).json(applicationsList);
