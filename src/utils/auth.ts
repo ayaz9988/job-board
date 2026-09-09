@@ -1,5 +1,9 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { fromNodeHeaders } from "better-auth/node";
+import type { IncomingHttpHeaders } from "http";
+import type { Request } from "express";
+
 import db from "../db";
 import {
   user,
@@ -7,9 +11,9 @@ import {
   account,
   verification,
 } from "../db/schemas/schema-auth";
-import { fromNodeHeaders } from "better-auth/node";
-import type { IncomingHttpHeaders } from "http";
-// import { sendEmail } from "./email"; // your email sending function
+import { env } from "../config/env"; // Your Zod-validated env file
+import { sendAuthEmail } from "email";
+import { resetPasswordTemplate, verificationTemplate } from "email-template";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -22,53 +26,79 @@ export interface AuthRequest extends Request {
 }
 
 export const auth = betterAuth({
-  baseURL: "http://localhost:3000",
+  // 1. DYNAMIC BASE URL: Never hardcode localhost in production
+  baseURL: env.BASE_URL,
+
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: { user, session, account, verification },
   }),
+
   emailAndPassword: {
     enabled: true,
     // requireEmailVerification: true,
-    onExistingUserSignUp: async ({ user }, request) => {
-      void sendEmail({
+
+    onExistingUserSignUp: async ({ user }) => {
+      void sendAuthEmail({
         to: user.email,
         subject: "Sign-up attempt with your email",
-        text: "Someone tried to create an account using your email address. If this was you, try signing in instead. If not, you can safely ignore this email.",
-      });
+        html: `<p>Someone tried to create an account using your email address. If this was you, try signing in instead. If not, you can safely ignore this email.</p>`,
+      }).catch((err) =>
+        httpLogger.error("Failed to send existing user sign-up email", {
+          error: err.message,
+          email: user.email,
+        }),
+      );
     },
-    sendResetPassword: async ({ user, url, token }, request) => {
-      void sendEmail({
+
+    sendResetPassword: async ({ user, url }) => {
+      void sendAuthEmail({
         to: user.email,
-        subject: "Reset your password",
-        text: `Click the link to reset your password: ${url}?token=${token}`,
-      });
+        subject: "Reset your password - Job Board",
+        html: resetPasswordTemplate(url, user.name),
+      }).catch((err) =>
+        httpLogger.error("Failed to send password reset email", {
+          error: err.message,
+          email: user.email,
+        }),
+      );
     },
-    onPasswordReset: async ({ user }, request) => {
-      console.log(`Password for user ${user.email} has been reset.`);
+
+    onPasswordReset: async ({ user }) => {
+      httpLogger.info("Password reset successful", { email: user.email });
     },
   },
-  // emailVerification: {
-  //   sendVerificationEmail: async ({ user, url, token }, request) => {
-  //     void sendEmail({
-  //       to: user.email,
-  //       subject: "Verify your email address",
-  //       text: `Click the link to verify your email: ${url}?token=${token}`,
-  //     });
-  //   },
-  // },
+
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+
+    sendVerificationEmail: async ({ user, url }) => {
+      void sendAuthEmail({
+        to: user.email,
+        subject: "Verify your email address - Job Board",
+        html: verificationTemplate(url, user.name),
+      }).catch((err) =>
+        httpLogger.error("Failed to send verification email", {
+          error: err.message,
+          email: user.email,
+        }),
+      );
+    },
+  },
+
   user: {
     additionalFields: {
       role: {
         type: "string" as const,
-        required: true,
-        input: false, // Don't let users set role on signup
+        required: false,
+        input: false,
         defaultValue: "seeker" as const,
       },
       profile: {
         type: "string" as const,
         required: false,
-        input: false, // Don't let users set profile on signup
+        input: false,
       },
       location: {
         type: "string" as const,
@@ -77,10 +107,13 @@ export const auth = betterAuth({
       },
     },
   },
+
   trustedOrigins: [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:*", // Wildcard port
+    "http://localhost:*",
+    // 6. PRODUCTION ORIGINS: Add your actual production frontend URL
+    env.FRONTEND_URL || "https://yourdomain.com",
   ],
 });
 
@@ -90,14 +123,3 @@ export const getAuthContext = async (headers: IncomingHttpHeaders) => {
   });
   return session;
 };
-
-/*
-usage example
-export async function MyController(this: ControllerClass, req: Request, res: Response) {
-    const ctx = await getAuthContext(req.headers);
-    if (!ctx) {
-        throw new Error("Should Never Happer: This should have been handled by the middleware");
-    }
-    return res.status(200).json({ user: ctx.user });
-}
-*/

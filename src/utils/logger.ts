@@ -88,8 +88,8 @@ export const redactLogData = (data: any): any => {
     const redactedData: any = {};
 
     for (const key in data) {
-      if (sensitiveKeysList.includes(key)) {
-        redactedData[key] = "*****"; // replace password with *
+      if (sensitiveKeysList.includes(key.toLowerCase())) {
+        redactedData[key] = "*****";
       } else {
         // Recursively redact sensitive keys within nested objects
         redactedData[key] = redactLogData(data[key]);
