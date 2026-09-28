@@ -12,8 +12,9 @@ import {
   verification,
 } from "../db/schemas/schema-auth";
 import { env } from "../config/env"; // Your Zod-validated env file
-import { sendAuthEmail } from "email";
-import { resetPasswordTemplate, verificationTemplate } from "email-template";
+import { sendAuthEmail } from "./email";
+import { resetPasswordTemplate, verificationTemplate } from "./email-template";
+import { httpLogger } from "./logger";
 
 export interface AuthRequest extends Request {
   user?: {
@@ -94,11 +95,13 @@ export const auth = betterAuth({
         required: false,
         input: false,
         defaultValue: "seeker" as const,
+        hidden: true,
       },
       profile: {
         type: "string" as const,
         required: false,
         input: false,
+        hidden: true,
       },
       location: {
         type: "string" as const,
@@ -112,8 +115,7 @@ export const auth = betterAuth({
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:*",
-    // 6. PRODUCTION ORIGINS: Add your actual production frontend URL
-    env.FRONTEND_URL || "https://yourdomain.com",
+    env.FRONTEND_URL,
   ],
 });
 

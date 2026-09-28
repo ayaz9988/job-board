@@ -44,11 +44,12 @@ export const httpLogger = winston.createLogger({
 export const formatHTTPLoggerResponse = (
   req: Request,
   res: Response,
-  responseBody: any, // object or array sent with res.send()
+  responseBody: any,
 ) => {
+  const { authorization, cookie, ...safeHeaders } = req.headers;
   return {
     request: {
-      headers: req.headers,
+      headers: safeHeaders,
       host: req.headers.host,
       baseUrl: req.baseUrl,
       url: req.url,

@@ -13,7 +13,7 @@ export const createValidationMiddleware = <T extends z.ZodTypeAny>(
         body: req.body,
       });
 
-      req.validated = validatedData;
+      (req as any).validated = validatedData;
       next();
     } catch (error) {
       if (error instanceof ZodError) {

@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { httpLogger } from "../logger"; // Adjust path to your logger file
+import { httpLogger } from "./logger";
 import { env } from "../config/env"; // Your Zod-validated env file
 
 const resend = new Resend(env.RESEND_API_KEY);

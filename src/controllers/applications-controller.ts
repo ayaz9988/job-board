@@ -208,7 +208,7 @@ export const getJobApplications = async (req: Request, res: Response) => {
       .innerJoin(jobs, eq(applications.jobId, jobs.id))
       .leftJoin(jobSkills, eq(jobSkills.jobId, jobs.id))
       .leftJoin(skills, eq(jobSkills.skillId, skills.id))
-      .where(eq(user.role, "seeker"))
+      .where(and(eq(applications.jobId, jobId), eq(user.role, "seeker")))
       .groupBy(
         applications.id,
         applications.status,

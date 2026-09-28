@@ -56,7 +56,7 @@ jobsRouter.delete(
   deleteJob,
 );
 
-jobsRouter.post("/:id/apply", createApplication);
+jobsRouter.post("/:id/apply", authenticationMiddleware, createApplication);
 
 jobsRouter.get(
   "/:id/applications",
