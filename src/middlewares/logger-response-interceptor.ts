@@ -1,6 +1,18 @@
 import { Response, Request, NextFunction } from "express";
 import { httpLogger, formatHTTPLoggerResponse } from "@/utils/logger";
 
+// Works with the { status, error: { message } } envelope
+const extractMessage = (body: unknown): string => {
+  if (typeof body === "string") return body;
+  if (typeof body === "object" && body !== null) {
+    const record = body as Record<string, unknown>;
+    const error = record.error as { message?: unknown } | undefined;
+    if (typeof error?.message === "string") return error.message;
+    if (typeof record.message === "string") return record.message;
+  }
+  return "Request completed";
+};
+
 export const responseInterceptor = (
   req: Request,
   res: Response,
@@ -12,16 +24,16 @@ export const responseInterceptor = (
   let responseSent = false;
 
   // Override the response method
-  res.send = function (body: any): Response {
+  res.send = function (body?: unknown): Response {
     if (!responseSent) {
       if (res.statusCode < 400) {
         httpLogger.info(
-          "Some Success message",
+          "Request succeeded",
           formatHTTPLoggerResponse(req, res, body),
         );
       } else {
         httpLogger.error(
-          body.message,
+          extractMessage(body),
           formatHTTPLoggerResponse(req, res, body),
         );
       }

@@ -1,8 +1,24 @@
 // schemas/job-schema.ts
 import { z } from "zod";
+import { applicationStatus } from "@/db/schemas/schema";
 
 // ==================== ENUMS ====================
 export const jobStatusEnum = z.enum(["open", "closed", "filled"]);
+export const applicationStatusEnum = z.enum(applicationStatus);
+
+// ==================== PAGINATION ====================
+const paginationQuery = {
+  page: z
+    .string()
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().positive())
+    .optional(),
+  limit: z
+    .string()
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(1).max(100))
+    .optional(),
+};
 
 // ==================== GET /jobs ====================
 export const getJobsSchema = z.object({
@@ -13,29 +29,22 @@ export const getJobsSchema = z.object({
         .string()
         .transform((val) => val === "true")
         .optional(),
-      page: z
-        .string()
-        .transform((val) => parseInt(val, 10))
-        .pipe(z.number().int().positive())
-        .optional(),
-      limit: z
-        .string()
-        .transform((val) => parseInt(val, 10))
-        .pipe(z.number().int().min(1).max(100))
-        .optional(),
+      ...paginationQuery,
     })
     .optional(), // Allow empty query strings
 });
 
+// ==================== PARAM: numeric :id ====================
+const idParam = z.object({
+  id: z
+    .string()
+    .regex(/^\d+$/, "ID must be a valid number")
+    .transform(Number),
+});
+
 // ==================== GET /jobs/:id & DELETE /jobs/:id ====================
 export const jobIdSchema = z.object({
-  params: z.object({
-    // Express params are strings, transform to number for DB
-    id: z
-      .string()
-      .regex(/^\d+$/, "ID must be a valid number")
-      .transform(Number),
-  }),
+  params: idParam,
 });
 
 // ==================== POST /jobs ====================
@@ -84,12 +93,7 @@ export const createJobSchema = z.object({
 
 // ==================== PATCH /jobs/:id ====================
 export const updateJobSchema = z.object({
-  params: z.object({
-    id: z
-      .string()
-      .regex(/^\d+$/, "ID must be a valid number")
-      .transform(Number),
-  }),
+  params: idParam,
   body: z
     .object({
       title: z
@@ -135,9 +139,59 @@ export const updateJobSchema = z.object({
     ),
 });
 
+// ==================== APPLICATIONS ====================
+// GET /applications
+export const listApplicationsSchema = z.object({
+  query: z.object({ ...paginationQuery }).optional(),
+});
+
+// GET /applications/:id & DELETE /applications/:id
+export const applicationIdSchema = z.object({
+  params: idParam,
+});
+
+// POST /applications/:id/status (employer only)
+export const updateApplicationStatusSchema = z.object({
+  params: idParam,
+  body: z.object({
+    status: applicationStatusEnum,
+  }),
+});
+
+// POST /jobs/:id/apply — seekers never choose a status; it starts as "applied"
+export const applyToJobSchema = z.object({
+  params: idParam,
+  body: z
+    .object({
+      coverLetter: z
+        .string()
+        .max(5000, "Cover letter cannot exceed 5000 characters")
+        .optional()
+        .nullable(),
+      cv: z
+        .string()
+        .max(2000, "CV cannot exceed 2000 characters")
+        .optional()
+        .nullable(),
+    })
+    .optional()
+    .default({}),
+});
+
+// GET /jobs/:id/applications (owner employer only)
+export const jobApplicationsSchema = z.object({
+  params: idParam,
+});
+
 // ==================== INFERRED TYPES ====================
 // You can use these in your controllers for full TypeScript autocompletion!
 export type GetJobsInput = z.infer<typeof getJobsSchema>;
 export type JobIdInput = z.infer<typeof jobIdSchema>;
 export type CreateJobInput = z.infer<typeof createJobSchema>;
 export type UpdateJobInput = z.infer<typeof updateJobSchema>;
+export type ListApplicationsInput = z.infer<typeof listApplicationsSchema>;
+export type ApplicationIdInput = z.infer<typeof applicationIdSchema>;
+export type UpdateApplicationStatusInput = z.infer<
+  typeof updateApplicationStatusSchema
+>;
+export type ApplyToJobInput = z.infer<typeof applyToJobSchema>;

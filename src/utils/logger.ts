@@ -44,9 +44,14 @@ export const httpLogger = winston.createLogger({
 export const formatHTTPLoggerResponse = (
   req: Request,
   res: Response,
-  responseBody: any,
+  responseBody: unknown,
 ) => {
-  const { authorization, cookie, ...safeHeaders } = req.headers;
+  // Strip credential-bearing headers before they ever reach a log file
+  const safeHeaders: Record<string, string | string[] | undefined> = {
+    ...req.headers,
+  };
+  delete safeHeaders["authorization"];
+  delete safeHeaders["cookie"];
   return {
     request: {
       headers: safeHeaders,
@@ -76,29 +81,30 @@ export enum SensitiveKeys {
 
 const sensitiveKeysList = Object.values(SensitiveKeys) as string[];
 
-export const redactLogData = (data: any): any => {
-  if (
-    typeof data === "object" &&
-    data !== null &&
-    !data.constructor.name.startsWith("model")
-  ) {
-    if (Array.isArray(data)) {
-      return data.map((item) => redactLogData(item));
-    }
-
-    const redactedData: any = {};
-
-    for (const key in data) {
-      if (sensitiveKeysList.includes(key.toLowerCase())) {
-        redactedData[key] = "*****";
-      } else {
-        // Recursively redact sensitive keys within nested objects
-        redactedData[key] = redactLogData(data[key]);
-      }
-    }
-
-    return redactedData;
-  } else {
+export const redactLogData = (data: unknown): unknown => {
+  if (typeof data !== "object" || data === null) {
     return data;
   }
+
+  // Drizzle model instances are returned as-is (no own enumerable secrets)
+  if (data.constructor.name.startsWith("model")) {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return data.map((item) => redactLogData(item));
+  }
+
+  const redactedData: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(data)) {
+    if (sensitiveKeysList.includes(key.toLowerCase())) {
+      redactedData[key] = "*****";
+    } else {
+      // Recursively redact sensitive keys within nested objects
+      redactedData[key] = redactLogData(value);
+    }
+  }
+
+  return redactedData;
 };

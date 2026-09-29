@@ -7,6 +7,7 @@ import {
   pgEnum,
   varchar,
   unique,
+  index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { user } from "./schema-auth";
@@ -22,19 +23,26 @@ export const appStatus = pgEnum("app_status", [
 ]);
 export const applicationStatus = appStatus.enumValues;
 
-export const jobs = pgTable("jobs", {
-  id: serial("id").primaryKey(),
-  title: varchar("title", { length: 255 }).notNull(),
-  description: text("description").notNull(),
-  employerId: text("employer_id")
-    .references(() => user.id, { onDelete: "cascade" })
-    .notNull(),
-  salaryMin: integer("salary_min"),
-  salaryMax: integer("salary_max"),
-  location: varchar("location", { length: 100 }),
-  status: jobStatus("status").notNull().default("open"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export const jobs = pgTable(
+  "jobs",
+  {
+    id: serial("id").primaryKey(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description").notNull(),
+    employerId: text("employer_id")
+      .references(() => user.id, { onDelete: "cascade" })
+      .notNull(),
+    salaryMin: integer("salary_min"),
+    salaryMax: integer("salary_max"),
+    location: varchar("location", { length: 100 }),
+    status: jobStatus("status").notNull().default("open"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    // "my jobs" listing and every ownership check join/filter on this
+    employerIdIdx: index("jobs_employer_id_idx").on(table.employerId),
+  }),
+);
 
 export const applications = pgTable(
   "applications",
@@ -56,6 +64,9 @@ export const applications = pgTable(
       table.jobId,
       table.seekerId,
     ),
+    // every application listing joins/filters on these
+    jobIdIdx: index("applications_job_id_idx").on(table.jobId),
+    seekerIdIdx: index("applications_seeker_id_idx").on(table.seekerId),
   }),
 );
 

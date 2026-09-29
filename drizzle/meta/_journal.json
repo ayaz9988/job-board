@@ -15,6 +15,13 @@
       "when": 1785969414334,
       "tag": "0001_thankful_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790687196687,
+      "tag": "0002_noisy_robbie_robertson",
+      "breakpoints": true
     }
   ]
 }
